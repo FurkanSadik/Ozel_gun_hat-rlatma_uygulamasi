@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../services/firebase";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -7,36 +9,38 @@ export default function RegisterScreen({ navigation }) {
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const isBirthDateValid = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
   const isEmailValid = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-  const handleRegister = () => {
+  const mapAuthError = (code) => {
+    if (code === "auth/invalid-email") return "E-posta formatı geçersiz.";
+    if (code === "auth/email-already-in-use") return "Bu e-posta zaten kayıtlı.";
+    if (code === "auth/weak-password") return "Şifre çok zayıf. En az 6 karakter olmalı.";
+    return "Kayıt başarısız. Lütfen tekrar deneyin.";
+  };
+
+  const handleRegister = async () => {
     const n = name.trim();
     const b = birthDate.trim();
     const g = gender.trim();
     const e = email.trim();
     const p = password.trim();
 
-    if (!n || !b || !g || !e || !p) {
-      Alert.alert("Hata", "Tüm alanlar zorunludur.");
-      return;
-    }
-    if (!isBirthDateValid(b)) {
-      Alert.alert("Hata", "Doğum tarihi formatı YYYY-AA-GG olmalı. Örn: 2003-07-21");
-      return;
-    }
-    if (!isEmailValid(e)) {
-      Alert.alert("Hata", "Geçerli bir e-posta giriniz.");
-      return;
-    }
-    if (p.length < 6) {
-      Alert.alert("Hata", "Şifre en az 6 karakter olmalıdır.");
-      return;
-    }
+    if (!n || !b || !g || !e || !p) return Alert.alert("Hata", "Tüm alanlar zorunludur.");
+    if (!isBirthDateValid(b)) return Alert.alert("Hata", "Doğum tarihi YYYY-AA-GG olmalı. Örn: 2003-07-21");
+    if (!isEmailValid(e)) return Alert.alert("Hata", "Geçerli bir e-posta giriniz.");
+    if (p.length < 6) return Alert.alert("Hata", "Şifre en az 6 karakter olmalıdır.");
 
-    Alert.alert("Başarılı", "Kayıt ekranı hazır. Firebase adımında gerçek kayıt yapılacak.");
-    navigation.navigate("Login");
+    try {
+      setLoading(true);
+      await createUserWithEmailAndPassword(auth, e, p);
+    } catch (err) {
+      Alert.alert("Hata", mapAuthError(err.code));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const GenderButton = ({ value, label }) => {
@@ -132,15 +136,18 @@ export default function RegisterScreen({ navigation }) {
 
       <TouchableOpacity
         onPress={handleRegister}
+        disabled={loading}
         style={{
-          backgroundColor: "black",
+          backgroundColor: loading ? "#444" : "black",
           paddingVertical: 12,
           borderRadius: 10,
           alignItems: "center",
           marginBottom: 12
         }}
       >
-        <Text style={{ color: "white", fontWeight: "700" }}>Kayıt Ol</Text>
+        <Text style={{ color: "white", fontWeight: "700" }}>
+          {loading ? "Kayıt Yapılıyor..." : "Kayıt Ol"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignItems: "center" }}>

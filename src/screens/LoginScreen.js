@@ -1,41 +1,39 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../services/firebase";
 
-export default function LoginScreen({ navigation, onFakeLogin }) {
+export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const showAlert = (title, message) => {
-    if (Platform.OS === "web") {
-      window.alert(`${title}\n${message}`);
-      return;
-    }
-    Alert.alert(title, message);
-  };
+  const [loading, setLoading] = useState(false);
 
   const isEmailValid = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-  const handleLogin = () => {
+  const mapAuthError = (code) => {
+    if (code === "auth/invalid-email") return "E-posta formatı geçersiz.";
+    if (code === "auth/user-not-found") return "Bu e-posta ile kayıtlı kullanıcı yok.";
+    if (code === "auth/wrong-password") return "Şifre yanlış.";
+    if (code === "auth/invalid-credential") return "E-posta veya şifre hatalı.";
+    if (code === "auth/too-many-requests") return "Çok fazla deneme yapıldı. Daha sonra tekrar deneyin.";
+    return "Giriş yapılamadı. Lütfen tekrar deneyin.";
+  };
+
+  const handleLogin = async () => {
     const e = email.trim();
     const p = password.trim();
 
-    if (!e || !p) {
-      showAlert("Hata", "E-posta ve şifre zorunludur.");
-      return;
-    }
-    if (!isEmailValid(e)) {
-      showAlert("Hata", "Geçerli bir e-posta giriniz.");
-      return;
-    }
-    if (p.length < 6) {
-      showAlert("Hata", "Şifre en az 6 karakter olmalıdır.");
-      return;
-    }
+    if (!e || !p) return Alert.alert("Hata", "E-posta ve şifre zorunludur.");
+    if (!isEmailValid(e)) return Alert.alert("Hata", "Geçerli bir e-posta giriniz.");
+    if (p.length < 6) return Alert.alert("Hata", "Şifre en az 6 karakter olmalıdır.");
 
-    if (typeof onFakeLogin === "function") {
-      onFakeLogin();
-    } else {
-      showAlert("Hata", "Giriş fonksiyonu bulunamadı. RootNavigator bağlantısını kontrol edin.");
+    try {
+      setLoading(true);
+      await signInWithEmailAndPassword(auth, e, p);
+    } catch (err) {
+      Alert.alert("Hata", mapAuthError(err.code));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,15 +76,18 @@ export default function LoginScreen({ navigation, onFakeLogin }) {
 
       <TouchableOpacity
         onPress={handleLogin}
+        disabled={loading}
         style={{
-          backgroundColor: "black",
+          backgroundColor: loading ? "#444" : "black",
           paddingVertical: 12,
           borderRadius: 10,
           alignItems: "center",
           marginBottom: 12
         }}
       >
-        <Text style={{ color: "white", fontWeight: "700" }}>Giriş Yap</Text>
+        <Text style={{ color: "white", fontWeight: "700" }}>
+          {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate("Register")} style={{ alignItems: "center" }}>
