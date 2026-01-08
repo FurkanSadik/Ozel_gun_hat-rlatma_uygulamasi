@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Platform
+  Platform,
+  RefreshControl
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
@@ -68,7 +69,9 @@ export default function PastScreen() {
 
   const [filter, setFilter] = useState("all");
 
-  const loadEvents = useCallback(async () => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadEvents = useCallback(async (opts = { showSpinner: true }) => {
     const user = auth.currentUser;
     if (!user) {
       setEvents([]);
@@ -76,21 +79,30 @@ export default function PastScreen() {
       return;
     }
     try {
-      setLoading(true);
+      if (opts?.showSpinner) setLoading(true);
       const list = await getEvents(user.uid);
       setEvents(Array.isArray(list) ? list : []);
     } catch (e) {
       setEvents([]);
     } finally {
-      setLoading(false);
+      if (opts?.showSpinner) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadEvents();
+      loadEvents({ showSpinner: true });
     }, [loadEvents])
   );
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadEvents({ showSpinner: false });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadEvents]);
 
   const pastAll = useMemo(() => {
     return events
@@ -145,7 +157,7 @@ export default function PastScreen() {
     });
 
     setEditingId(null);
-    loadEvents();
+    await loadEvents({ showSpinner: false });
   };
 
   const confirmDelete = (item) => {
@@ -156,7 +168,7 @@ export default function PastScreen() {
       await deleteEvent(user.uid, item.id);
       setExpandedId(null);
       setEditingId(null);
-      loadEvents();
+      await loadEvents({ showSpinner: false });
     };
 
     if (Platform.OS === "web") {
@@ -221,6 +233,8 @@ export default function PastScreen() {
           data={past}
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => {
             const open = expandedId === item.id;
             const editing = editingId === item.id;

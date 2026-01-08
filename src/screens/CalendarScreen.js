@@ -7,7 +7,8 @@ import {
   Alert,
   TextInput,
   Platform,
-  ScrollView
+  ScrollView,
+  RefreshControl
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Calendar } from "react-native-calendars";
@@ -112,7 +113,9 @@ export default function CalendarScreen() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ title: "", note: "", type: "diger", date: "" });
 
-  const loadEvents = useCallback(async () => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadEvents = useCallback(async (opts = { showSpinner: true }) => {
     const user = auth.currentUser;
     if (!user) {
       setEvents([]);
@@ -120,21 +123,30 @@ export default function CalendarScreen() {
       return;
     }
     try {
-      setLoading(true);
+      if (opts?.showSpinner) setLoading(true);
       const list = await getEvents(user.uid);
       setEvents(Array.isArray(list) ? list : []);
     } catch (e) {
       setEvents([]);
     } finally {
-      setLoading(false);
+      if (opts?.showSpinner) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadEvents();
+      loadEvents({ showSpinner: true });
     }, [loadEvents])
   );
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadEvents({ showSpinner: false });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadEvents]);
 
   const markedDates = useMemo(() => {
     return toMarkedDates(events, selectedDate);
@@ -189,7 +201,7 @@ export default function CalendarScreen() {
     setEditingId(null);
     setExpandedId(item.id);
     setSelectedDate(date);
-    loadEvents();
+    await loadEvents({ showSpinner: false });
   };
 
   const confirmDelete = (item) => {
@@ -200,7 +212,7 @@ export default function CalendarScreen() {
       await deleteEvent(user.uid, item.id);
       setExpandedId(null);
       setEditingId(null);
-      loadEvents();
+      await loadEvents({ showSpinner: false });
     };
 
     if (Platform.OS === "web") {
@@ -229,7 +241,10 @@ export default function CalendarScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Text style={{ fontSize: 18, fontWeight: "900", marginBottom: 10 }}>Takvim</Text>
 
       <Calendar

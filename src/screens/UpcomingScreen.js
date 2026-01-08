@@ -9,7 +9,8 @@ import {
   TextInput,
   Platform,
   Vibration,
-  Animated
+  Animated,
+  RefreshControl
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
@@ -98,7 +99,9 @@ export default function UpcomingScreen() {
 
   const [filter, setFilter] = useState("all");
 
-  const loadEvents = useCallback(async () => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadEvents = useCallback(async (opts = { showSpinner: true }) => {
     const user = auth.currentUser;
     if (!user) {
       setEvents([]);
@@ -106,21 +109,30 @@ export default function UpcomingScreen() {
       return;
     }
     try {
-      setLoading(true);
+      if (opts?.showSpinner) setLoading(true);
       const list = await getEvents(user.uid);
       setEvents(Array.isArray(list) ? list : []);
     } catch (e) {
       setEvents([]);
     } finally {
-      setLoading(false);
+      if (opts?.showSpinner) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadEvents();
+      loadEvents({ showSpinner: true });
     }, [loadEvents])
   );
+
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadEvents({ showSpinner: false });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadEvents]);
 
   const upcomingAll = useMemo(() => {
     return events
@@ -184,7 +196,7 @@ export default function UpcomingScreen() {
     });
 
     setEditingId(null);
-    loadEvents();
+    await loadEvents({ showSpinner: false });
   };
 
   const confirmDelete = (item) => {
@@ -195,7 +207,7 @@ export default function UpcomingScreen() {
       await deleteEvent(user.uid, item.id);
       setExpandedId(null);
       setEditingId(null);
-      loadEvents();
+      await loadEvents({ showSpinner: false });
     };
 
     if (Platform.OS === "web") {
@@ -276,14 +288,15 @@ export default function UpcomingScreen() {
           data={upcoming}
           keyExtractor={(item) => item.id}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => {
             const open = expandedId === item.id;
             const editing = editingId === item.id;
             const urgent = item.diff === 0 || item.diff === 1;
 
             const badgeText = item.diff === 0 ? "BUGÜN" : item.diff === 1 ? "YARIN" : null;
-            const rightText =
-              item.diff === 0 ? "Bugün" : item.diff === 1 ? "Yarın" : `${item.diff}g`;
+            const rightText = item.diff === 0 ? "Bugün" : item.diff === 1 ? "Yarın" : `${item.diff}g`;
 
             return (
               <UrgentWrapper urgent={urgent}>
@@ -297,13 +310,7 @@ export default function UpcomingScreen() {
                   }}
                 >
                   <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}
-                    >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                       <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={{ fontWeight: "900" }}>{item.title || "-"}</Text>
                         <Text style={{ marginTop: 4, fontWeight: "700" }}>Tarih: {item.date}</Text>
@@ -311,14 +318,7 @@ export default function UpcomingScreen() {
 
                       <View style={{ alignItems: "flex-end", gap: 6 }}>
                         {badgeText ? (
-                          <View
-                            style={{
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                              borderRadius: 999,
-                              backgroundColor: "#000"
-                            }}
-                          >
+                          <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#000" }}>
                             <Text style={{ color: "white", fontWeight: "900" }}>{badgeText}</Text>
                           </View>
                         ) : null}
@@ -335,13 +335,7 @@ export default function UpcomingScreen() {
                             value={form.title}
                             onChangeText={(t) => setForm((p) => ({ ...p, title: t }))}
                             placeholder="Başlık"
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#ddd",
-                              borderRadius: 10,
-                              padding: 10,
-                              backgroundColor: "white"
-                            }}
+                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
                           />
 
                           <TextInput
@@ -349,26 +343,14 @@ export default function UpcomingScreen() {
                             onChangeText={(t) => setForm((p) => ({ ...p, date: t }))}
                             placeholder="Tarih (YYYY-AA-GG)"
                             autoCapitalize="none"
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#ddd",
-                              borderRadius: 10,
-                              padding: 10,
-                              backgroundColor: "white"
-                            }}
+                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
                           />
 
                           <TextInput
                             value={form.note}
                             onChangeText={(t) => setForm((p) => ({ ...p, note: t }))}
                             placeholder="Not"
-                            style={{
-                              borderWidth: 1,
-                              borderColor: "#ddd",
-                              borderRadius: 10,
-                              padding: 10,
-                              backgroundColor: "white"
-                            }}
+                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
                           />
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -395,12 +377,7 @@ export default function UpcomingScreen() {
                           <TouchableOpacity
                             onPress={() => saveEdit(item)}
                             activeOpacity={0.85}
-                            style={{
-                              backgroundColor: "#000",
-                              paddingVertical: 10,
-                              borderRadius: 10,
-                              alignItems: "center"
-                            }}
+                            style={{ backgroundColor: "#000", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
                           >
                             <Text style={{ color: "white", fontWeight: "900" }}>Kaydet</Text>
                           </TouchableOpacity>
@@ -408,36 +385,21 @@ export default function UpcomingScreen() {
                           <TouchableOpacity
                             onPress={cancelEdit}
                             activeOpacity={0.85}
-                            style={{
-                              paddingVertical: 10,
-                              borderRadius: 10,
-                              alignItems: "center",
-                              borderWidth: 1,
-                              borderColor: "#ddd",
-                              backgroundColor: "white"
-                            }}
+                            style={{ paddingVertical: 10, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "#ddd", backgroundColor: "white" }}
                           >
                             <Text style={{ fontWeight: "900" }}>İptal</Text>
                           </TouchableOpacity>
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontWeight: "800" }}>
-                            Tür: {TYPE_LABELS[item.type] || "Diğer"}
-                          </Text>
+                          <Text style={{ fontWeight: "800" }}>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
                           {!!item.note && <Text style={{ fontWeight: "700" }}>Not: {item.note}</Text>}
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
                             <TouchableOpacity
                               onPress={() => startEdit(item)}
                               activeOpacity={0.85}
-                              style={{
-                                flex: 1,
-                                backgroundColor: "#444",
-                                paddingVertical: 10,
-                                borderRadius: 10,
-                                alignItems: "center"
-                              }}
+                              style={{ flex: 1, backgroundColor: "#444", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
                             >
                               <Text style={{ color: "white", fontWeight: "900" }}>Düzenle</Text>
                             </TouchableOpacity>
@@ -445,13 +407,7 @@ export default function UpcomingScreen() {
                             <TouchableOpacity
                               onPress={() => confirmDelete(item)}
                               activeOpacity={0.85}
-                              style={{
-                                flex: 1,
-                                backgroundColor: "#d00000",
-                                paddingVertical: 10,
-                                borderRadius: 10,
-                                alignItems: "center"
-                              }}
+                              style={{ flex: 1, backgroundColor: "#d00000", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
                             >
                               <Text style={{ color: "white", fontWeight: "900" }}>Sil</Text>
                             </TouchableOpacity>

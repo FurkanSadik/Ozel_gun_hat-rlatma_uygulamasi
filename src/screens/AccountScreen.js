@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
-  Platform
+  Platform,
+  ScrollView,
+  RefreshControl
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
@@ -32,12 +34,14 @@ export default function AccountScreen() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: "", birthDate: "", gender: "erkek" });
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const showMsg = (title, msg) => {
     if (Platform.OS === "web") window.alert(`${title}\n${msg}`);
     else Alert.alert(title, msg);
   };
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (opts = { showSpinner: true }) => {
     const user = auth.currentUser;
     if (!user) {
       setProfile(null);
@@ -46,7 +50,8 @@ export default function AccountScreen() {
     }
 
     try {
-      setLoading(true);
+      if (opts?.showSpinner) setLoading(true);
+
       await ensureUserDoc(user.uid, {
         email: user.email || "",
         name: "",
@@ -64,18 +69,23 @@ export default function AccountScreen() {
     } catch (e) {
       setProfile(null);
     } finally {
-      setLoading(false);
+      if (opts?.showSpinner) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
+      loadProfile({ showSpinner: true });
     }, [loadProfile])
   );
 
-  useEffect(() => {
-    loadProfile();
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadProfile({ showSpinner: false });
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadProfile]);
 
   const onSave = async () => {
@@ -93,7 +103,7 @@ export default function AccountScreen() {
     try {
       setLoading(true);
       await updateUserProfile(user.uid, { name, birthDate, gender });
-      await loadProfile();
+      await loadProfile({ showSpinner: false });
       setEditing(false);
       showMsg("Başarılı", "Hesap bilgileri güncellendi.");
     } catch (e) {
@@ -123,7 +133,10 @@ export default function AccountScreen() {
   const email = auth.currentUser?.email || profile?.email || "-";
 
   return (
-    <View style={{ flex: 1, padding: 14, gap: 12 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 28 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Text style={{ fontSize: 18, fontWeight: "900" }}>Hesap</Text>
 
       <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 14, padding: 12, backgroundColor: "white" }}>
@@ -131,7 +144,9 @@ export default function AccountScreen() {
 
         {!editing ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "800" }}>E-posta: <Text style={{ fontWeight: "600" }}>{email}</Text></Text>
+            <Text style={{ fontWeight: "800" }}>
+              E-posta: <Text style={{ fontWeight: "600" }}>{email}</Text>
+            </Text>
             <Text style={{ fontWeight: "800" }}>
               Ad Soyad: <Text style={{ fontWeight: "600" }}>{profile?.name || "-"}</Text>
             </Text>
@@ -256,6 +271,6 @@ export default function AccountScreen() {
       >
         <Text style={{ color: "white", fontWeight: "900" }}>Çıkış Yap</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
