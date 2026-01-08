@@ -1,13 +1,29 @@
 import { useCallback, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  Platform
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
-import { getEvents, deleteEvent } from "../services/eventService";
+import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
   yildonumu: "Yıldönümü",
   diger: "Diğer"
+};
+
+const isValidDateString = (s) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return false;
+  const [y, m, d] = String(s).split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 };
 
 const daysUntil = (dateStr) => {
@@ -31,6 +47,9 @@ export default function UpcomingScreen() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ title: "", note: "", type: "diger", date: "" });
 
   const loadEvents = useCallback(async () => {
     const user = auth.currentUser;
@@ -66,26 +85,72 @@ export default function UpcomingScreen() {
 
   const toggle = (id) => {
     setExpandedId((prev) => (prev === id ? null : id));
+    setEditingId(null);
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setForm({
+      title: item.title || "",
+      note: item.note || "",
+      type: item.type || "diger",
+      date: item.date || ""
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const showMsg = (msg) => {
+    if (Platform.OS === "web") window.alert(msg);
+    else Alert.alert("Uyarı", msg);
+  };
+
+  const saveEdit = async (item) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const title = String(form.title || "").trim();
+    if (!title) return showMsg("Başlık boş olamaz.");
+
+    const date = String(form.date || "").trim();
+    if (!isValidDateString(date)) return showMsg("Tarih formatı geçersiz. Örn: 2026-01-08");
+
+    await updateEvent(user.uid, item.id, {
+      title,
+      date,
+      note: String(form.note || "").trim(),
+      type: form.type || "diger"
+    });
+
+    setEditingId(null);
+    loadEvents();
   };
 
   const confirmDelete = (item) => {
     const user = auth.currentUser;
     if (!user) return;
 
+    const runDelete = async () => {
+      await deleteEvent(user.uid, item.id);
+      setExpandedId(null);
+      setEditingId(null);
+      loadEvents();
+    };
+
+    if (Platform.OS === "web") {
+      const ok = window.confirm(`"${item.title || "-"}" kaydı silinsin mi?`);
+      if (ok) runDelete();
+      return;
+    }
+
     Alert.alert(
       "Silinsin mi?",
       `"${item.title || "-"}" kaydını silmek istediğine emin misin?`,
       [
         { text: "Vazgeç", style: "cancel" },
-        {
-          text: "Sil",
-          style: "destructive",
-          onPress: async () => {
-            await deleteEvent(user.uid, item.id);
-            setExpandedId(null);
-            loadEvents();
-          }
-        }
+        { text: "Sil", style: "destructive", onPress: runDelete }
       ]
     );
   };
@@ -112,10 +177,10 @@ export default function UpcomingScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           renderItem={({ item }) => {
             const open = expandedId === item.id;
+            const editing = editingId === item.id;
+
             return (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => toggle(item.id)}
+              <View
                 style={{
                   borderWidth: 1,
                   borderColor: open ? "#000" : "#ddd",
@@ -123,36 +188,143 @@ export default function UpcomingScreen() {
                   padding: 12
                 }}
               >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ fontWeight: "800", flex: 1, paddingRight: 10 }}>{item.title || "-"}</Text>
-                  <Text style={{ fontWeight: "800" }}>
-                    {item.diff === 0 ? "Bugün" : item.diff === 1 ? "Yarın" : `${item.diff}g`}
-                  </Text>
-                </View>
-
-                <Text style={{ marginTop: 6 }}>Tarih: {item.date}</Text>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontWeight: "800", flex: 1, paddingRight: 10 }}>{item.title || "-"}</Text>
+                    <Text style={{ fontWeight: "800" }}>
+                      {item.diff === 0 ? "Bugün" : item.diff === 1 ? "Yarın" : `${item.diff}g`}
+                    </Text>
+                  </View>
+                  <Text style={{ marginTop: 6 }}>Tarih: {item.date}</Text>
+                </TouchableOpacity>
 
                 {open && (
-                  <View style={{ marginTop: 10, gap: 6 }}>
-                    <Text>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
-                    {!!item.note && <Text>Not: {item.note}</Text>}
+                  <View style={{ marginTop: 10, gap: 8 }}>
+                    {editing ? (
+                      <>
+                        <TextInput
+                          value={form.title}
+                          onChangeText={(t) => setForm((p) => ({ ...p, title: t }))}
+                          placeholder="Başlık"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#ddd",
+                            borderRadius: 10,
+                            padding: 10
+                          }}
+                        />
 
-                    <TouchableOpacity
-                      onPress={() => confirmDelete(item)}
-                      activeOpacity={0.85}
-                      style={{
-                        marginTop: 8,
-                        backgroundColor: "#d00000",
-                        paddingVertical: 10,
-                        borderRadius: 10,
-                        alignItems: "center"
-                      }}
-                    >
-                      <Text style={{ color: "white", fontWeight: "800" }}>Sil</Text>
-                    </TouchableOpacity>
+                        <TextInput
+                          value={form.date}
+                          onChangeText={(t) => setForm((p) => ({ ...p, date: t }))}
+                          placeholder="Tarih (YYYY-AA-GG)"
+                          autoCapitalize="none"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#ddd",
+                            borderRadius: 10,
+                            padding: 10
+                          }}
+                        />
+
+                        <TextInput
+                          value={form.note}
+                          onChangeText={(t) => setForm((p) => ({ ...p, note: t }))}
+                          placeholder="Not"
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#ddd",
+                            borderRadius: 10,
+                            padding: 10
+                          }}
+                        />
+
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          {["dogum_gunu", "yildonumu", "diger"].map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              onPress={() => setForm((p) => ({ ...p, type: t }))}
+                              activeOpacity={0.85}
+                              style={{
+                                flex: 1,
+                                borderWidth: 1,
+                                borderColor: form.type === t ? "#000" : "#ddd",
+                                borderRadius: 10,
+                                paddingVertical: 10,
+                                alignItems: "center"
+                              }}
+                            >
+                              <Text style={{ fontWeight: "800" }}>{TYPE_LABELS[t]}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+
+                        <TouchableOpacity
+                          onPress={() => saveEdit(item)}
+                          activeOpacity={0.85}
+                          style={{
+                            backgroundColor: "#000",
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: "center"
+                          }}
+                        >
+                          <Text style={{ color: "white", fontWeight: "800" }}>Kaydet</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={cancelEdit}
+                          activeOpacity={0.85}
+                          style={{
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: "center",
+                            borderWidth: 1,
+                            borderColor: "#ddd"
+                          }}
+                        >
+                          <Text style={{ fontWeight: "800" }}>İptal</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <Text>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
+                        {!!item.note && <Text>Not: {item.note}</Text>}
+
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => startEdit(item)}
+                            activeOpacity={0.85}
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#444",
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: "center"
+                            }}
+                          >
+                            <Text style={{ color: "white", fontWeight: "800" }}>Düzenle</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => confirmDelete(item)}
+                            activeOpacity={0.85}
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#d00000",
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: "center"
+                            }}
+                          >
+                            <Text style={{ color: "white", fontWeight: "800" }}>Sil</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    )}
                   </View>
                 )}
-              </TouchableOpacity>
+              </View>
             );
           }}
         />

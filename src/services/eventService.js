@@ -6,7 +6,8 @@ import {
   query,
   orderBy,
   doc,
-  deleteDoc
+  deleteDoc,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -26,4 +27,9 @@ export async function getEvents(uid) {
 export async function deleteEvent(uid, eventId) {
   const ref = doc(db, "users", uid, "events", eventId);
   await deleteDoc(ref);
+}
+
+export async function updateEvent(uid, eventId, data) {
+  const ref = doc(db, "users", uid, "events", eventId);
+  await updateDoc(ref, data);
 }
