@@ -11,6 +11,12 @@ const TYPE_COLORS = {
   diger: "#2ecc71"
 };
 
+const TYPE_LABELS = {
+  dogum_gunu: "Doğum Günü",
+  yildonumu: "Yıldönümü",
+  diger: "Diğer"
+};
+
 export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState("");
   const [events, setEvents] = useState([]);
@@ -43,11 +49,9 @@ export default function CalendarScreen() {
 
   const markedDates = useMemo(() => {
     const marks = {};
-
     for (const ev of events) {
       const d = ev?.date;
       if (!d) continue;
-
       const color = TYPE_COLORS[ev?.type] || "#000";
 
       if (!marks[d]) {
@@ -65,8 +69,12 @@ export default function CalendarScreen() {
         selectedColor: existing.selectedColor || "#000"
       };
     }
-
     return marks;
+  }, [events, selectedDate]);
+
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    return events.filter((e) => e?.date === selectedDate);
   }, [events, selectedDate]);
 
   return (
@@ -87,10 +95,36 @@ export default function CalendarScreen() {
             }}
           />
 
-          <View style={{ paddingTop: 14, alignItems: "center" }}>
-            <Text style={{ fontSize: 14, fontWeight: "700" }}>
+          <View style={{ paddingTop: 14 }}>
+            <Text style={{ fontSize: 14, fontWeight: "800", marginBottom: 8 }}>
               Seçili Gün: {selectedDate || "-"}
             </Text>
+
+            {!selectedDate ? (
+              <Text style={{ fontWeight: "600" }}>Detay görmek için bir gün seç.</Text>
+            ) : selectedDayEvents.length === 0 ? (
+              <Text style={{ fontWeight: "600" }}>Bu güne ait özel gün yok.</Text>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {selectedDayEvents.map((ev) => (
+                  <View
+                    key={ev.id}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#ddd",
+                      borderRadius: 12,
+                      padding: 12
+                    }}
+                  >
+                    <Text style={{ fontWeight: "800", marginBottom: 4 }}>
+                      {ev.title || "-"}
+                    </Text>
+                    <Text>Tür: {TYPE_LABELS[ev.type] || "Diğer"}</Text>
+                    {!!ev.note && <Text>Not: {ev.note}</Text>}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </>
       )}
