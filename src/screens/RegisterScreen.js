@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
+import { createUserProfile } from "../services/userService";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -9,6 +10,7 @@ export default function RegisterScreen({ navigation }) {
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isBirthDateValid = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -18,7 +20,9 @@ export default function RegisterScreen({ navigation }) {
     if (code === "auth/invalid-email") return "E-posta formatı geçersiz.";
     if (code === "auth/email-already-in-use") return "Bu e-posta zaten kayıtlı.";
     if (code === "auth/weak-password") return "Şifre çok zayıf. En az 6 karakter olmalı.";
-    return "Kayıt başarısız. Lütfen tekrar deneyin.";
+    if (code === "auth/network-request-failed") return "Ağ hatası. İnterneti kontrol edin.";
+    if (code === "auth/operation-not-allowed") return "Email/Şifre kaydı Firebase’de aktif değil.";
+    return `Kayıt başarısız. (${code || "bilinmeyen hata"})`;
   };
 
   const handleRegister = async () => {
@@ -28,16 +32,28 @@ export default function RegisterScreen({ navigation }) {
     const e = email.trim();
     const p = password.trim();
 
-    if (!n || !b || !g || !e || !p) return Alert.alert("Hata", "Tüm alanlar zorunludur.");
-    if (!isBirthDateValid(b)) return Alert.alert("Hata", "Doğum tarihi YYYY-AA-GG olmalı. Örn: 2003-07-21");
-    if (!isEmailValid(e)) return Alert.alert("Hata", "Geçerli bir e-posta giriniz.");
-    if (p.length < 6) return Alert.alert("Hata", "Şifre en az 6 karakter olmalıdır.");
+    setInfo("");
+
+    if (!n || !b || !g || !e || !p) return setInfo("Tüm alanlar zorunludur.");
+    if (!isBirthDateValid(b)) return setInfo("Doğum tarihi YYYY-AA-GG olmalı. Örn: 2003-07-21");
+    if (!isEmailValid(e)) return setInfo("Geçerli bir e-posta giriniz.");
+    if (p.length < 6) return setInfo("Şifre en az 6 karakter olmalıdır.");
 
     try {
       setLoading(true);
-      await createUserWithEmailAndPassword(auth, e, p);
+
+      const cred = await createUserWithEmailAndPassword(auth, e, p);
+
+      await createUserProfile(cred.user.uid, {
+        name: n,
+        birthDate: b,
+        gender: g,
+        email: e
+      });
+
+      setInfo("Kayıt başarılı, giriş yapıldı. Yönlendiriliyorsun...");
     } catch (err) {
-      Alert.alert("Hata", mapAuthError(err.code));
+      setInfo(mapAuthError(err.code));
     } finally {
       setLoading(false);
     }
@@ -68,6 +84,12 @@ export default function RegisterScreen({ navigation }) {
       <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 16 }}>
         Kayıt Ol
       </Text>
+
+      {!!info && (
+        <Text style={{ textAlign: "center", marginBottom: 10, fontWeight: "600" }}>
+          {info}
+        </Text>
+      )}
 
       <TextInput
         value={name}
