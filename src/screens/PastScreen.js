@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
 import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
+import EmptyState from "../components/EmptyState";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
@@ -210,7 +211,11 @@ export default function PastScreen() {
       </View>
 
       {past.length === 0 ? (
-        <Text style={{ fontWeight: "600" }}>Bu filtrede geçmiş özel gün yok.</Text>
+        <EmptyState
+          emoji="🕰️"
+          title="Bu filtrede geçmiş özel gün yok"
+          subtitle="Geçmiş tarihli bir özel gün ekleyerek burada görüntüleyebilirsin."
+        />
       ) : (
         <FlatList
           data={past}

@@ -2,27 +2,30 @@ import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
-  ActivityIndicator,
   TouchableOpacity,
+  ActivityIndicator,
   Alert,
   TextInput,
-  Platform
+  Platform,
+  ScrollView
 } from "react-native";
-import { Calendar } from "react-native-calendars";
 import { useFocusEffect } from "@react-navigation/native";
+import { Calendar } from "react-native-calendars";
 import { auth } from "../services/firebase";
 import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
-
-const TYPE_COLORS = {
-  dogum_gunu: "#9b59b6",
-  yildonumu: "#3498db",
-  diger: "#2ecc71"
-};
+import EmptyState from "../components/EmptyState";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
   yildonumu: "Yıldönümü",
   diger: "Diğer"
+};
+
+const normalizeDate = (d) => {
+  if (!d) return "";
+  const s = String(d);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return "";
 };
 
 const isValidDateString = (s) => {
@@ -32,10 +35,78 @@ const isValidDateString = (s) => {
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 };
 
+const COLORS = {
+  multi: "#ef4444",
+  dogum_gunu: "#facc15",
+  diger: "#22c55e",
+  yildonumu: "#9ca3af"
+};
+
+const pickColorForDate = (eventsForDate) => {
+  const types = Array.from(new Set(eventsForDate.map((e) => e?.type || "diger")));
+  if (types.length > 1) return COLORS.multi;
+  const t = types[0] || "diger";
+  return COLORS[t] || COLORS.diger;
+};
+
+const getTextColorForBg = (bg) => {
+  if (bg === COLORS.dogum_gunu) return "#111827";
+  return "white";
+};
+
+const toMarkedDates = (events, selectedDate) => {
+  const grouped = {};
+  for (const e of events) {
+    const date = normalizeDate(e?.date);
+    if (!date) continue;
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(e);
+  }
+
+  const marked = {};
+  for (const date of Object.keys(grouped)) {
+    const bg = pickColorForDate(grouped[date]);
+    const textColor = getTextColorForBg(bg);
+    marked[date] = {
+      customStyles: {
+        container: {
+          backgroundColor: bg,
+          borderRadius: 999
+        },
+        text: {
+          color: textColor,
+          fontWeight: "900"
+        }
+      }
+    };
+  }
+
+  if (selectedDate) {
+    marked[selectedDate] = {
+      ...(marked[selectedDate] || {}),
+      customStyles: {
+        ...(marked[selectedDate]?.customStyles || {}),
+        container: {
+          ...(marked[selectedDate]?.customStyles?.container || {}),
+          borderWidth: 2,
+          borderColor: "#000"
+        },
+        text: {
+          ...(marked[selectedDate]?.customStyles?.text || {}),
+          fontWeight: "900"
+        }
+      }
+    };
+  }
+
+  return marked;
+};
+
 export default function CalendarScreen() {
-  const [selectedDate, setSelectedDate] = useState("");
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [selectedDate, setSelectedDate] = useState("");
   const [expandedId, setExpandedId] = useState(null);
 
   const [editingId, setEditingId] = useState(null);
@@ -48,7 +119,6 @@ export default function CalendarScreen() {
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true);
       const list = await getEvents(user.uid);
@@ -67,35 +137,14 @@ export default function CalendarScreen() {
   );
 
   const markedDates = useMemo(() => {
-    const marks = {};
-    for (const ev of events) {
-      const d = ev?.date;
-      if (!d) continue;
-
-      const color = TYPE_COLORS[ev?.type] || "#000";
-
-      if (!marks[d]) {
-        marks[d] = { selected: true, selectedColor: color };
-      } else {
-        marks[d] = { selected: true, selectedColor: "#111" };
-      }
-    }
-
-    if (selectedDate) {
-      const existing = marks[selectedDate] || {};
-      marks[selectedDate] = {
-        ...existing,
-        selected: true,
-        selectedColor: existing.selectedColor || "#000"
-      };
-    }
-
-    return marks;
+    return toMarkedDates(events, selectedDate);
   }, [events, selectedDate]);
 
-  const selectedDayEvents = useMemo(() => {
+  const selectedEvents = useMemo(() => {
     if (!selectedDate) return [];
-    return events.filter((e) => e?.date === selectedDate);
+    return events
+      .filter((e) => normalizeDate(e?.date) === selectedDate)
+      .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
   }, [events, selectedDate]);
 
   const toggle = (id) => {
@@ -103,26 +152,24 @@ export default function CalendarScreen() {
     setEditingId(null);
   };
 
-  const startEdit = (ev) => {
-    setEditingId(ev.id);
+  const startEdit = (item) => {
+    setEditingId(item.id);
     setForm({
-      title: ev.title || "",
-      note: ev.note || "",
-      type: ev.type || "diger",
-      date: ev.date || ""
+      title: item.title || "",
+      note: item.note || "",
+      type: item.type || "diger",
+      date: item.date || selectedDate
     });
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
+  const cancelEdit = () => setEditingId(null);
 
   const showMsg = (msg) => {
     if (Platform.OS === "web") window.alert(msg);
     else Alert.alert("Uyarı", msg);
   };
 
-  const saveEdit = async (ev) => {
+  const saveEdit = async (item) => {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -132,7 +179,7 @@ export default function CalendarScreen() {
     const date = String(form.date || "").trim();
     if (!isValidDateString(date)) return showMsg("Tarih formatı geçersiz. Örn: 2026-01-08");
 
-    await updateEvent(user.uid, ev.id, {
+    await updateEvent(user.uid, item.id, {
       title,
       date,
       note: String(form.note || "").trim(),
@@ -140,29 +187,31 @@ export default function CalendarScreen() {
     });
 
     setEditingId(null);
+    setExpandedId(item.id);
+    setSelectedDate(date);
     loadEvents();
   };
 
-  const confirmDelete = (ev) => {
+  const confirmDelete = (item) => {
     const user = auth.currentUser;
     if (!user) return;
 
     const runDelete = async () => {
-      await deleteEvent(user.uid, ev.id);
+      await deleteEvent(user.uid, item.id);
       setExpandedId(null);
       setEditingId(null);
       loadEvents();
     };
 
     if (Platform.OS === "web") {
-      const ok = window.confirm(`"${ev.title || "-"}" kaydı silinsin mi?`);
+      const ok = window.confirm(`"${item.title || "-"}" kaydı silinsin mi?`);
       if (ok) runDelete();
       return;
     }
 
     Alert.alert(
       "Silinsin mi?",
-      `"${ev.title || "-"}" kaydını silmek istediğine emin misin?`,
+      `"${item.title || "-"}" kaydını silmek istediğine emin misin?`,
       [
         { text: "Vazgeç", style: "cancel" },
         { text: "Sil", style: "destructive", onPress: runDelete }
@@ -174,54 +223,74 @@ export default function CalendarScreen() {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator />
-        <Text style={{ marginTop: 10, fontWeight: "600" }}>Yükleniyor...</Text>
+        <Text style={{ marginTop: 10, fontWeight: "700" }}>Yükleniyor...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, padding: 12 }}>
+    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
+      <Text style={{ fontSize: 18, fontWeight: "900", marginBottom: 10 }}>Takvim</Text>
+
       <Calendar
         onDayPress={(day) => {
           setSelectedDate(day.dateString);
           setExpandedId(null);
           setEditingId(null);
         }}
+        markingType="custom"
         markedDates={markedDates}
         theme={{
-          todayTextColor: "black",
-          arrowColor: "black"
+          todayTextColor: "#000",
+          arrowColor: "#000"
         }}
       />
 
-      <View style={{ paddingTop: 14 }}>
-        <Text style={{ fontSize: 14, fontWeight: "800", marginBottom: 8 }}>
-          Seçili Gün: {selectedDate || "-"}
-        </Text>
+      <View style={{ marginTop: 12 }}>
+        <Text style={{ fontWeight: "900", marginBottom: 8 }}>Seçili Gün</Text>
 
         {!selectedDate ? (
-          <Text style={{ fontWeight: "600" }}>Detay görmek için bir gün seç.</Text>
-        ) : selectedDayEvents.length === 0 ? (
-          <Text style={{ fontWeight: "600" }}>Bu güne ait özel gün yok.</Text>
+          <EmptyState
+            emoji="🗓️"
+            title="Detay görmek için bir gün seç"
+            subtitle="Takvimden bir tarih seçerek o güne ait özel günleri görebilirsin."
+          />
+        ) : selectedEvents.length === 0 ? (
+          <EmptyState
+            emoji="✨"
+            title="Bu güne ait özel gün yok"
+            subtitle="Başka bir gün seçebilir veya yeni bir özel gün ekleyebilirsin."
+          />
         ) : (
-          <View style={{ gap: 8 }}>
-            {selectedDayEvents.map((ev) => {
-              const open = expandedId === ev.id;
-              const editing = editingId === ev.id;
+          <View style={{ gap: 10 }}>
+            {selectedEvents.map((item) => {
+              const open = expandedId === item.id;
+              const editing = editingId === item.id;
 
               return (
                 <View
-                  key={ev.id}
+                  key={item.id}
                   style={{
                     borderWidth: 1,
                     borderColor: open ? "#000" : "#ddd",
-                    borderRadius: 12,
-                    padding: 12
+                    borderRadius: 14,
+                    padding: 12,
+                    backgroundColor: "white"
                   }}
                 >
-                  <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(ev.id)}>
-                    <Text style={{ fontWeight: "800", marginBottom: 4 }}>{ev.title || "-"}</Text>
-                    <Text>Tür: {TYPE_LABELS[ev.type] || "Diğer"}</Text>
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <View style={{ flex: 1, paddingRight: 10 }}>
+                        <Text style={{ fontWeight: "900" }}>{item.title || "-"}</Text>
+                        <Text style={{ marginTop: 4, fontWeight: "700" }}>Tarih: {item.date}</Text>
+                      </View>
+                      <Text style={{ fontWeight: "900" }}>{TYPE_LABELS[item.type] || "Diğer"}</Text>
+                    </View>
+                    {!!item.note && !open && (
+                      <Text numberOfLines={1} style={{ marginTop: 6, color: "#444", fontWeight: "600" }}>
+                        Not: {item.note}
+                      </Text>
+                    )}
                   </TouchableOpacity>
 
                   {open && (
@@ -236,7 +305,8 @@ export default function CalendarScreen() {
                               borderWidth: 1,
                               borderColor: "#ddd",
                               borderRadius: 10,
-                              padding: 10
+                              padding: 10,
+                              backgroundColor: "white"
                             }}
                           />
 
@@ -249,7 +319,8 @@ export default function CalendarScreen() {
                               borderWidth: 1,
                               borderColor: "#ddd",
                               borderRadius: 10,
-                              padding: 10
+                              padding: 10,
+                              backgroundColor: "white"
                             }}
                           />
 
@@ -261,7 +332,8 @@ export default function CalendarScreen() {
                               borderWidth: 1,
                               borderColor: "#ddd",
                               borderRadius: 10,
-                              padding: 10
+                              padding: 10,
+                              backgroundColor: "white"
                             }}
                           />
 
@@ -277,7 +349,8 @@ export default function CalendarScreen() {
                                   borderColor: form.type === t ? "#000" : "#ddd",
                                   borderRadius: 10,
                                   paddingVertical: 10,
-                                  alignItems: "center"
+                                  alignItems: "center",
+                                  backgroundColor: "white"
                                 }}
                               >
                                 <Text style={{ fontWeight: "800" }}>{TYPE_LABELS[t]}</Text>
@@ -286,7 +359,7 @@ export default function CalendarScreen() {
                           </View>
 
                           <TouchableOpacity
-                            onPress={() => saveEdit(ev)}
+                            onPress={() => saveEdit(item)}
                             activeOpacity={0.85}
                             style={{
                               backgroundColor: "#000",
@@ -295,7 +368,7 @@ export default function CalendarScreen() {
                               alignItems: "center"
                             }}
                           >
-                            <Text style={{ color: "white", fontWeight: "800" }}>Kaydet</Text>
+                            <Text style={{ color: "white", fontWeight: "900" }}>Kaydet</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -306,20 +379,20 @@ export default function CalendarScreen() {
                               borderRadius: 10,
                               alignItems: "center",
                               borderWidth: 1,
-                              borderColor: "#ddd"
+                              borderColor: "#ddd",
+                              backgroundColor: "white"
                             }}
                           >
-                            <Text style={{ fontWeight: "800" }}>İptal</Text>
+                            <Text style={{ fontWeight: "900" }}>İptal</Text>
                           </TouchableOpacity>
                         </>
                       ) : (
                         <>
-                          <Text>Tarih: {ev.date}</Text>
-                          {!!ev.note && <Text>Not: {ev.note}</Text>}
+                          {!!item.note && <Text style={{ fontWeight: "700" }}>Not: {item.note}</Text>}
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
                             <TouchableOpacity
-                              onPress={() => startEdit(ev)}
+                              onPress={() => startEdit(item)}
                               activeOpacity={0.85}
                               style={{
                                 flex: 1,
@@ -329,11 +402,11 @@ export default function CalendarScreen() {
                                 alignItems: "center"
                               }}
                             >
-                              <Text style={{ color: "white", fontWeight: "800" }}>Düzenle</Text>
+                              <Text style={{ color: "white", fontWeight: "900" }}>Düzenle</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                              onPress={() => confirmDelete(ev)}
+                              onPress={() => confirmDelete(item)}
                               activeOpacity={0.85}
                               style={{
                                 flex: 1,
@@ -343,7 +416,7 @@ export default function CalendarScreen() {
                                 alignItems: "center"
                               }}
                             >
-                              <Text style={{ color: "white", fontWeight: "800" }}>Sil</Text>
+                              <Text style={{ color: "white", fontWeight: "900" }}>Sil</Text>
                             </TouchableOpacity>
                           </View>
                         </>
@@ -356,6 +429,6 @@ export default function CalendarScreen() {
           </View>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }

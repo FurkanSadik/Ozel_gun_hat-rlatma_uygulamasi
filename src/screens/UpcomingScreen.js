@@ -14,6 +14,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
 import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
+import EmptyState from "../components/EmptyState";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
@@ -260,14 +261,16 @@ export default function UpcomingScreen() {
           }}
         >
           <Text style={{ fontWeight: "900" }}>Acil</Text>
-          <Text style={{ fontWeight: "700" }}>
-            Bugün/Yarın olan {urgentCount} özel gün var.
-          </Text>
+          <Text style={{ fontWeight: "700" }}>Bugün/Yarın olan {urgentCount} özel gün var.</Text>
         </View>
       )}
 
       {upcoming.length === 0 ? (
-        <Text style={{ fontWeight: "600" }}>Bu filtrede özel gün yok.</Text>
+        <EmptyState
+          emoji="📅"
+          title="Bu filtrede yaklaşan özel gün yok"
+          subtitle="Takvim ekranından yeni bir özel gün ekleyebilirsin."
+        />
       ) : (
         <FlatList
           data={upcoming}
@@ -294,7 +297,13 @@ export default function UpcomingScreen() {
                   }}
                 >
                   <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
                       <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={{ fontWeight: "900" }}>{item.title || "-"}</Text>
                         <Text style={{ marginTop: 4, fontWeight: "700" }}>Tarih: {item.date}</Text>
@@ -413,7 +422,9 @@ export default function UpcomingScreen() {
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontWeight: "800" }}>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
+                          <Text style={{ fontWeight: "800" }}>
+                            Tür: {TYPE_LABELS[item.type] || "Diğer"}
+                          </Text>
                           {!!item.note && <Text style={{ fontWeight: "700" }}>Not: {item.note}</Text>}
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
