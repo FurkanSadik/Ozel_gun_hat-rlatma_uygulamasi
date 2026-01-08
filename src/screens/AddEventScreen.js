@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { auth } from "../services/firebase";
+import { addEvent } from "../services/eventService";
 
 export default function AddEventScreen({ navigation }) {
   const [title, setTitle] = useState("");
@@ -7,6 +9,7 @@ export default function AddEventScreen({ navigation }) {
   const [type, setType] = useState("");
   const [note, setNote] = useState("");
   const [info, setInfo] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const TypeButton = ({ value, label }) => {
     const selected = type === value;
@@ -28,7 +31,7 @@ export default function AddEventScreen({ navigation }) {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const t = title.trim();
     const d = date.trim();
     const ty = type.trim();
@@ -39,7 +42,23 @@ export default function AddEventScreen({ navigation }) {
     if (!t || !d || !ty) return setInfo("Başlık, tarih ve tür zorunludur.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return setInfo("Tarih YYYY-AA-GG formatında olmalı. Örn: 2026-01-08");
 
-    setInfo("Kaydetme işlemi Aşama 6.2'de eklenecek.");
+    const user = auth.currentUser;
+    if (!user) return setInfo("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+
+    try {
+      setLoading(true);
+      await addEvent(user.uid, {
+        title: t,
+        date: d,
+        type: ty,
+        note: n
+      });
+      navigation.goBack();
+    } catch (e) {
+      setInfo("Kaydetme başarısız.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -84,9 +103,12 @@ export default function AddEventScreen({ navigation }) {
 
       <TouchableOpacity
         onPress={handleSave}
-        style={{ backgroundColor: "black", paddingVertical: 12, borderRadius: 12, alignItems: "center", marginBottom: 10 }}
+        disabled={loading}
+        style={{ backgroundColor: loading ? "#444" : "black", paddingVertical: 12, borderRadius: 12, alignItems: "center", marginBottom: 10 }}
       >
-        <Text style={{ color: "white", fontWeight: "700" }}>Kaydet</Text>
+        <Text style={{ color: "white", fontWeight: "700" }}>
+          {loading ? "Kaydediliyor..." : "Kaydet"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignItems: "center" }}>
