@@ -4,9 +4,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
 import UpcomingScreen from "../screens/UpcomingScreen";
-import CalendarScreen from "../screens/CalendarScreen";
 import PastScreen from "../screens/PastScreen";
 import AccountScreen from "../screens/AccountScreen";
+import CalendarStack from "./CalendarStack";
 
 const Tab = createBottomTabNavigator();
 
@@ -39,14 +39,17 @@ export default function TabsNavigator() {
             iconName = focused ? "time" : "time-outline";
             iconColor = "#f39c12";
           }
+
           if (route.name === "Calendar") {
             iconName = focused ? "calendar" : "calendar-outline";
             iconColor = "#3498db";
           }
+
           if (route.name === "Past") {
             iconName = focused ? "archive" : "archive-outline";
             iconColor = "#8e44ad";
           }
+
           if (route.name === "Account") {
             iconName = focused ? "settings" : "settings-outline";
             iconColor = "#2c3e50";
@@ -64,14 +67,17 @@ export default function TabsNavigator() {
           tabBarLabel: ({ focused }) => <TabLabel text={"Yaklaşan\nGünler"} focused={focused} />
         }}
       />
+
       <Tab.Screen
         name="Calendar"
-        component={CalendarScreen}
+        component={CalendarStack}
         options={{
+          headerShown: false,
           title: "Takvim",
           tabBarLabel: ({ focused }) => <TabLabel text={"Takvim"} focused={focused} />
         }}
       />
+
       <Tab.Screen
         name="Past"
         component={PastScreen}
@@ -80,6 +86,7 @@ export default function TabsNavigator() {
           tabBarLabel: ({ focused }) => <TabLabel text={"Geçmiş\nGünler"} focused={focused} />
         }}
       />
+
       <Tab.Screen
         name="Account"
         component={AccountScreen}

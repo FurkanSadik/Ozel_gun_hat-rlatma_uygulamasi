@@ -1,10 +1,9 @@
-import React from "react";
 import { View, Text } from "react-native";
 
 export default function CalendarScreen() {
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <Text>Takvim</Text>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 16 }}>
+      <Text style={{ fontSize: 18, fontWeight: "700" }}>Takvim</Text>
     </View>
   );
 }
