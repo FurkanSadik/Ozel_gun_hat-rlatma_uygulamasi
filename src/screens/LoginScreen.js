@@ -2,8 +2,12 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Alert } from "react-native";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
+import { useAppTheme } from "../contexts/ThemeContext";
 
 export default function LoginScreen({ navigation }) {
+  const { navTheme, mode } = useAppTheme();
+  const C = navTheme.colors;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,6 +22,8 @@ export default function LoginScreen({ navigation }) {
     if (code === "auth/too-many-requests") return "Çok fazla deneme yapıldı. Daha sonra tekrar deneyin.";
     return "Giriş yapılamadı. Lütfen tekrar deneyin.";
   };
+
+  const placeholderTextColor = mode === "dark" ? "#94a3b8" : "#6b7280";
 
   const handleLogin = async () => {
     const e = email.trim();
@@ -38,8 +44,16 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 16 }}>
+    <View style={{ flex: 1, padding: 16, justifyContent: "center", backgroundColor: C.background }}>
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: "700",
+          textAlign: "center",
+          marginBottom: 16,
+          color: C.text
+        }}
+      >
         Hoş Geldin
       </Text>
 
@@ -47,11 +61,14 @@ export default function LoginScreen({ navigation }) {
         value={email}
         onChangeText={setEmail}
         placeholder="E-posta"
+        placeholderTextColor={placeholderTextColor}
         autoCapitalize="none"
         keyboardType="email-address"
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -63,10 +80,13 @@ export default function LoginScreen({ navigation }) {
         value={password}
         onChangeText={setPassword}
         placeholder="Şifre"
+        placeholderTextColor={placeholderTextColor}
         secureTextEntry
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -77,8 +97,9 @@ export default function LoginScreen({ navigation }) {
       <TouchableOpacity
         onPress={handleLogin}
         disabled={loading}
+        activeOpacity={0.85}
         style={{
-          backgroundColor: loading ? "#444" : "black",
+          backgroundColor: loading ? "#444" : "#000",
           paddingVertical: 12,
           borderRadius: 10,
           alignItems: "center",
@@ -91,7 +112,7 @@ export default function LoginScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate("Register")} style={{ alignItems: "center" }}>
-        <Text style={{ fontWeight: "600" }}>Hesabın yok mu? Kayıt Ol</Text>
+        <Text style={{ fontWeight: "600", color: C.text }}>Hesabın yok mu? Kayıt Ol</Text>
       </TouchableOpacity>
     </View>
   );

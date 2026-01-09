@@ -1,25 +1,56 @@
+import React from "react";
 import { View, Text } from "react-native";
+import { useAppTheme } from "../contexts/ThemeContext";
 
-export default function EmptyState({ emoji = "📭", title, subtitle }) {
+export default function EmptyState({
+  emoji = "✨",
+  title = "Boş",
+  subtitle = "",
+  variant = "default" // "default" | "soft"
+}) {
+  const { navTheme, mode } = useAppTheme();
+  const C = navTheme.colors;
+
+  const softBg = mode === "dark" ? "#2a1216" : "#fff1f2";   // bordo/pembe ton
+  const softBorder = mode === "dark" ? "#7f1d1d" : "#fecdd3";
+
+  const containerStyle =
+    variant === "soft"
+      ? {
+          backgroundColor: softBg,
+          borderColor: softBorder,
+          borderWidth: 1
+        }
+      : {
+          backgroundColor: C.card,
+          borderColor: C.border,
+          borderWidth: 1
+        };
+
   return (
     <View
       style={{
-        borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: 16,
-        padding: 18,
+        padding: 14,
+        borderRadius: 14,
         alignItems: "center",
-        backgroundColor: "white"
+        gap: 6,
+        ...containerStyle
       }}
     >
-      <Text style={{ fontSize: 34 }}>{emoji}</Text>
+      <Text style={{ fontSize: 28 }}>{emoji}</Text>
 
-      <Text style={{ fontWeight: "900", fontSize: 16, marginTop: 10, textAlign: "center" }}>
+      <Text style={{ fontWeight: "900", fontSize: 16, color: C.text, textAlign: "center" }}>
         {title}
       </Text>
 
       {!!subtitle && (
-        <Text style={{ fontWeight: "700", marginTop: 6, textAlign: "center", color: "#444" }}>
+        <Text
+          style={{
+            fontWeight: "700",
+            color: mode === "dark" ? "#cbd5e1" : "#374151",
+            textAlign: "center"
+          }}
+        >
           {subtitle}
         </Text>
       )}

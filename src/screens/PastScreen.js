@@ -14,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
 import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
 import EmptyState from "../components/EmptyState";
+import { useAppTheme } from "../contexts/ThemeContext";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
@@ -60,6 +61,11 @@ const daysPassed = (dateStr) => {
 };
 
 export default function PastScreen() {
+  const { navTheme, mode } = useAppTheme();
+  const C = navTheme.colors;
+
+  const placeholderTextColor = mode === "dark" ? "#94a3b8" : "#6b7280";
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
@@ -68,7 +74,6 @@ export default function PastScreen() {
   const [form, setForm] = useState({ title: "", note: "", type: "diger", date: "" });
 
   const [filter, setFilter] = useState("all");
-
   const [refreshing, setRefreshing] = useState(false);
 
   const loadEvents = useCallback(async (opts = { showSpinner: true }) => {
@@ -189,41 +194,43 @@ export default function PastScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.background }}>
         <ActivityIndicator />
-        <Text style={{ marginTop: 10, fontWeight: "600" }}>Yükleniyor...</Text>
+        <Text style={{ marginTop: 10, fontWeight: "700", color: C.text }}>Yükleniyor...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, padding: 12 }}>
-      <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 8 }}>Geçmiş Günler</Text>
+    <View style={{ flex: 1, padding: 12, backgroundColor: C.background }}>
+      <Text style={{ fontSize: 18, fontWeight: "900", marginBottom: 8, color: C.text }}>Geçmiş Günler</Text>
 
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            onPress={() => setFilter(f.key)}
-            activeOpacity={0.85}
-            style={{
-              borderWidth: 1,
-              borderColor: filter === f.key ? "#000" : "#ddd",
-              backgroundColor: filter === f.key ? "#000" : "#fff",
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 999
-            }}
-          >
-            <Text style={{ fontWeight: "900", color: filter === f.key ? "#fff" : "#000" }}>
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              activeOpacity={0.85}
+              style={{
+                borderWidth: 1,
+                borderColor: active ? C.primary : C.border,
+                backgroundColor: active ? C.primary : C.card,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 999
+              }}
+            >
+              <Text style={{ fontWeight: "900", color: active ? C.background : C.text }}>{f.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {past.length === 0 ? (
         <EmptyState
+          variant="soft"
           emoji="🕰️"
           title="Bu filtrede geçmiş özel gün yok"
           subtitle="Geçmiş tarihli bir özel gün ekleyerek burada görüntüleyebilirsin."
@@ -243,17 +250,23 @@ export default function PastScreen() {
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: open ? "#000" : "#ddd",
+                  borderColor: open ? C.primary : C.border,
                   borderRadius: 12,
-                  padding: 12
+                  padding: 12,
+                  backgroundColor: C.card
                 }}
               >
                 <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={{ fontWeight: "800", flex: 1, paddingRight: 10 }}>{item.title || "-"}</Text>
-                    <Text style={{ fontWeight: "800" }}>{item.diff === 1 ? "1g" : `${item.diff}g`}</Text>
+                    <Text style={{ fontWeight: "900", flex: 1, paddingRight: 10, color: C.text }}>
+                      {item.title || "-"}
+                    </Text>
+                    <Text style={{ fontWeight: "900", color: C.text }}>
+                      {item.diff === 1 ? "1g" : `${item.diff}g`}
+                    </Text>
                   </View>
-                  <Text style={{ marginTop: 6 }}>Tarih: {item.date}</Text>
+
+                  <Text style={{ marginTop: 6, color: C.text, fontWeight: "700" }}>Tarih: {item.date}</Text>
                 </TouchableOpacity>
 
                 {open && (
@@ -264,11 +277,14 @@ export default function PastScreen() {
                           value={form.title}
                           onChangeText={(t) => setForm((p) => ({ ...p, title: t }))}
                           placeholder="Başlık"
+                          placeholderTextColor={placeholderTextColor}
                           style={{
                             borderWidth: 1,
-                            borderColor: "#ddd",
+                            borderColor: C.border,
                             borderRadius: 10,
-                            padding: 10
+                            padding: 10,
+                            backgroundColor: C.card,
+                            color: C.text
                           }}
                         />
 
@@ -276,12 +292,15 @@ export default function PastScreen() {
                           value={form.date}
                           onChangeText={(t) => setForm((p) => ({ ...p, date: t }))}
                           placeholder="Tarih (YYYY-AA-GG)"
+                          placeholderTextColor={placeholderTextColor}
                           autoCapitalize="none"
                           style={{
                             borderWidth: 1,
-                            borderColor: "#ddd",
+                            borderColor: C.border,
                             borderRadius: 10,
-                            padding: 10
+                            padding: 10,
+                            backgroundColor: C.card,
+                            color: C.text
                           }}
                         />
 
@@ -289,32 +308,39 @@ export default function PastScreen() {
                           value={form.note}
                           onChangeText={(t) => setForm((p) => ({ ...p, note: t }))}
                           placeholder="Not"
+                          placeholderTextColor={placeholderTextColor}
                           style={{
                             borderWidth: 1,
-                            borderColor: "#ddd",
+                            borderColor: C.border,
                             borderRadius: 10,
-                            padding: 10
+                            padding: 10,
+                            backgroundColor: C.card,
+                            color: C.text
                           }}
                         />
 
                         <View style={{ flexDirection: "row", gap: 8 }}>
-                          {["dogum_gunu", "yildonumu", "diger"].map((t) => (
-                            <TouchableOpacity
-                              key={t}
-                              onPress={() => setForm((p) => ({ ...p, type: t }))}
-                              activeOpacity={0.85}
-                              style={{
-                                flex: 1,
-                                borderWidth: 1,
-                                borderColor: form.type === t ? "#000" : "#ddd",
-                                borderRadius: 10,
-                                paddingVertical: 10,
-                                alignItems: "center"
-                              }}
-                            >
-                              <Text style={{ fontWeight: "800" }}>{TYPE_LABELS[t]}</Text>
-                            </TouchableOpacity>
-                          ))}
+                          {["dogum_gunu", "yildonumu", "diger"].map((t) => {
+                            const selected = form.type === t;
+                            return (
+                              <TouchableOpacity
+                                key={t}
+                                onPress={() => setForm((p) => ({ ...p, type: t }))}
+                                activeOpacity={0.85}
+                                style={{
+                                  flex: 1,
+                                  borderWidth: 1,
+                                  borderColor: selected ? C.primary : C.border,
+                                  borderRadius: 10,
+                                  paddingVertical: 10,
+                                  alignItems: "center",
+                                  backgroundColor: C.card
+                                }}
+                              >
+                                <Text style={{ fontWeight: "900", color: C.text }}>{TYPE_LABELS[t]}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
 
                         <TouchableOpacity
@@ -327,7 +353,7 @@ export default function PastScreen() {
                             alignItems: "center"
                           }}
                         >
-                          <Text style={{ color: "white", fontWeight: "800" }}>Kaydet</Text>
+                          <Text style={{ color: "white", fontWeight: "900" }}>Kaydet</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -338,19 +364,24 @@ export default function PastScreen() {
                             borderRadius: 10,
                             alignItems: "center",
                             borderWidth: 1,
-                            borderColor: "#ddd"
+                            borderColor: C.border,
+                            backgroundColor: C.card
                           }}
                         >
-                          <Text style={{ fontWeight: "800" }}>İptal</Text>
+                          <Text style={{ fontWeight: "900", color: C.text }}>İptal</Text>
                         </TouchableOpacity>
                       </>
                     ) : (
                       <>
-                        <Text>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
-                        <Text style={{ fontWeight: "800" }}>
+                        <Text style={{ color: C.text, fontWeight: "800" }}>
+                          Tür: {TYPE_LABELS[item.type] || "Diğer"}
+                        </Text>
+
+                        <Text style={{ fontWeight: "900", color: C.text }}>
                           {item.diff === 1 ? "1 gün geçti" : `${item.diff} gün geçti`}
                         </Text>
-                        {!!item.note && <Text>Not: {item.note}</Text>}
+
+                        {!!item.note && <Text style={{ color: C.text, fontWeight: "700" }}>Not: {item.note}</Text>}
 
                         <View style={{ flexDirection: "row", gap: 8 }}>
                           <TouchableOpacity
@@ -364,7 +395,7 @@ export default function PastScreen() {
                               alignItems: "center"
                             }}
                           >
-                            <Text style={{ color: "white", fontWeight: "800" }}>Düzenle</Text>
+                            <Text style={{ color: "white", fontWeight: "900" }}>Düzenle</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -378,7 +409,7 @@ export default function PastScreen() {
                               alignItems: "center"
                             }}
                           >
-                            <Text style={{ color: "white", fontWeight: "800" }}>Sil</Text>
+                            <Text style={{ color: "white", fontWeight: "900" }}>Sil</Text>
                           </TouchableOpacity>
                         </View>
                       </>

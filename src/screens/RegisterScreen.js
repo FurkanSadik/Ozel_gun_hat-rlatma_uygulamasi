@@ -3,8 +3,12 @@ import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { createUserProfile } from "../services/userService";
+import { useAppTheme } from "../contexts/ThemeContext";
 
 export default function RegisterScreen({ navigation }) {
+  const { navTheme, mode } = useAppTheme();
+  const C = navTheme.colors;
+
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState("");
@@ -13,8 +17,10 @@ export default function RegisterScreen({ navigation }) {
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isBirthDateValid = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
-  const isEmailValid = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  const isBirthDateValid = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s));
+  const isEmailValid = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s));
+
+  const placeholderTextColor = mode === "dark" ? "#94a3b8" : "#6b7280";
 
   const mapAuthError = (code) => {
     if (code === "auth/invalid-email") return "E-posta formatı geçersiz.";
@@ -53,7 +59,7 @@ export default function RegisterScreen({ navigation }) {
 
       setInfo("Kayıt başarılı, giriş yapıldı. Yönlendiriliyorsun...");
     } catch (err) {
-      setInfo(mapAuthError(err.code));
+      setInfo(mapAuthError(err?.code));
     } finally {
       setLoading(false);
     }
@@ -63,41 +69,54 @@ export default function RegisterScreen({ navigation }) {
     const selected = gender === value;
     return (
       <TouchableOpacity
+        activeOpacity={0.85}
         onPress={() => setGender(value)}
         style={{
           flex: 1,
           paddingVertical: 12,
           borderRadius: 10,
           borderWidth: 1,
-          borderColor: selected ? "black" : "#ccc",
-          backgroundColor: selected ? "black" : "white",
+          borderColor: selected ? C.primary : C.border,
+          backgroundColor: selected ? C.primary : C.card,
           alignItems: "center"
         }}
       >
-        <Text style={{ fontWeight: "700", color: selected ? "white" : "black" }}>{label}</Text>
+        <Text style={{ fontWeight: "700", color: selected ? C.background : C.text }}>{label}</Text>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 16 }}>
+    <View style={{ flex: 1, padding: 16, justifyContent: "center", backgroundColor: C.background }}>
+      <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 16, color: C.text }}>
         Kayıt Ol
       </Text>
 
       {!!info && (
-        <Text style={{ textAlign: "center", marginBottom: 10, fontWeight: "600" }}>
-          {info}
-        </Text>
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: C.border,
+            backgroundColor: C.card,
+            borderRadius: 12,
+            padding: 10,
+            marginBottom: 10
+          }}
+        >
+          <Text style={{ textAlign: "center", fontWeight: "700", color: C.text }}>{info}</Text>
+        </View>
       )}
 
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Ad Soyad"
+        placeholderTextColor={placeholderTextColor}
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -109,10 +128,13 @@ export default function RegisterScreen({ navigation }) {
         value={birthDate}
         onChangeText={setBirthDate}
         placeholder="Doğum Tarihi (YYYY-AA-GG)"
+        placeholderTextColor={placeholderTextColor}
         autoCapitalize="none"
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -129,11 +151,14 @@ export default function RegisterScreen({ navigation }) {
         value={email}
         onChangeText={setEmail}
         placeholder="E-posta"
+        placeholderTextColor={placeholderTextColor}
         autoCapitalize="none"
         keyboardType="email-address"
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -145,10 +170,13 @@ export default function RegisterScreen({ navigation }) {
         value={password}
         onChangeText={setPassword}
         placeholder="Şifre"
+        placeholderTextColor={placeholderTextColor}
         secureTextEntry
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: C.border,
+          backgroundColor: C.card,
+          color: C.text,
           borderRadius: 10,
           paddingHorizontal: 12,
           paddingVertical: 10,
@@ -159,8 +187,9 @@ export default function RegisterScreen({ navigation }) {
       <TouchableOpacity
         onPress={handleRegister}
         disabled={loading}
+        activeOpacity={0.85}
         style={{
-          backgroundColor: loading ? "#444" : "black",
+          backgroundColor: loading ? "#444" : "#000",
           paddingVertical: 12,
           borderRadius: 10,
           alignItems: "center",
@@ -172,8 +201,8 @@ export default function RegisterScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignItems: "center" }}>
-        <Text style={{ fontWeight: "600" }}>Zaten hesabın var mı? Giriş Yap</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignItems: "center" }} activeOpacity={0.85}>
+        <Text style={{ fontWeight: "600", color: C.text }}>Zaten hesabın var mı? Giriş Yap</Text>
       </TouchableOpacity>
     </View>
   );

@@ -30,7 +30,8 @@ const isValidDateString = (s) => {
 };
 
 export default function AccountScreen() {
-  const { mode, toggleTheme } = useAppTheme();
+  const { navTheme, mode, toggleTheme } = useAppTheme();
+  const C = navTheme.colors;
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -39,6 +40,8 @@ export default function AccountScreen() {
   const [form, setForm] = useState({ name: "", birthDate: "", gender: "erkek" });
 
   const [refreshing, setRefreshing] = useState(false);
+
+  const placeholderTextColor = mode === "dark" ? "#94a3b8" : "#6b7280";
 
   const showMsg = (title, msg) => {
     if (Platform.OS === "web") window.alert(`${title}\n${msg}`);
@@ -128,9 +131,9 @@ export default function AccountScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 16 }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: C.background }}>
         <ActivityIndicator />
-        <Text style={{ marginTop: 10, fontWeight: "700" }}>Yükleniyor...</Text>
+        <Text style={{ marginTop: 10, fontWeight: "700", color: C.text }}>Yükleniyor...</Text>
       </View>
     );
   }
@@ -139,37 +142,53 @@ export default function AccountScreen() {
 
   return (
     <ScrollView
+      style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 28 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.text} />}
     >
-      <Text style={{ fontSize: 18, fontWeight: "900" }}>Hesap</Text>
+      <Text style={{ fontSize: 18, fontWeight: "900", color: C.text }}>Hesap</Text>
 
-      <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 14, padding: 12, backgroundColor: "white" }}>
+      {/* Tema kartı */}
+      <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, backgroundColor: C.card }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Text style={{ fontWeight: "900" }}>Karanlık Mod</Text>
-          <Switch value={mode === "dark"} onValueChange={toggleTheme} />
+          <Text style={{ fontWeight: "900", color: C.text }}>Karanlık Mod</Text>
+
+          <Switch
+            value={mode === "dark"}
+            onValueChange={toggleTheme}
+            trackColor={{ false: C.border, true: "#111827" }}
+            thumbColor={Platform.OS === "android" ? (mode === "dark" ? "#f9fafb" : "#ffffff") : undefined}
+          />
         </View>
-        <Text style={{ marginTop: 6, color: "#444", fontWeight: "700" }}>
+
+        <Text style={{ marginTop: 6, color: mode === "dark" ? "#94a3b8" : "#6b7280", fontWeight: "700" }}>
           {mode === "dark" ? "Açık" : "Kapalı"}
         </Text>
       </View>
 
-      <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 14, padding: 12, backgroundColor: "white" }}>
-        <Text style={{ fontWeight: "900", marginBottom: 8 }}>Hesap Bilgileri</Text>
+      {/* Profil kartı */}
+      <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, backgroundColor: C.card }}>
+        <Text style={{ fontWeight: "900", marginBottom: 8, color: C.text }}>Hesap Bilgileri</Text>
 
         {!editing ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ fontWeight: "800" }}>
-              E-posta: <Text style={{ fontWeight: "600" }}>{email}</Text>
+            <Text style={{ fontWeight: "800", color: C.text }}>
+              E-posta: <Text style={{ fontWeight: "600", color: C.text }}>{email}</Text>
             </Text>
-            <Text style={{ fontWeight: "800" }}>
-              Ad Soyad: <Text style={{ fontWeight: "600" }}>{profile?.name || "-"}</Text>
+
+            <Text style={{ fontWeight: "800", color: C.text }}>
+              Ad Soyad: <Text style={{ fontWeight: "600", color: C.text }}>{profile?.name || "-"}</Text>
             </Text>
-            <Text style={{ fontWeight: "800" }}>
-              Doğum Tarihi: <Text style={{ fontWeight: "600" }}>{profile?.birthDate || "-"}</Text>
+
+            <Text style={{ fontWeight: "800", color: C.text }}>
+              Doğum Tarihi: <Text style={{ fontWeight: "600", color: C.text }}>{profile?.birthDate || "-"}</Text>
             </Text>
-            <Text style={{ fontWeight: "800" }}>
-              Cinsiyet: <Text style={{ fontWeight: "600" }}>{profile?.gender === "kiz" ? "Kız" : "Erkek"}</Text>
+
+            <Text style={{ fontWeight: "800", color: C.text }}>
+              Cinsiyet:{" "}
+              <Text style={{ fontWeight: "600", color: C.text }}>
+                {profile?.gender === "kiz" ? "Kız" : "Erkek"}
+              </Text>
             </Text>
 
             <TouchableOpacity
@@ -177,13 +196,13 @@ export default function AccountScreen() {
               onPress={() => setEditing(true)}
               style={{
                 marginTop: 10,
-                backgroundColor: "#000",
+                backgroundColor: C.primary,
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: "center"
               }}
             >
-              <Text style={{ color: "white", fontWeight: "900" }}>Bilgileri Güncelle</Text>
+              <Text style={{ color: C.background, fontWeight: "900" }}>Bilgileri Güncelle</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -192,12 +211,14 @@ export default function AccountScreen() {
               value={form.name}
               onChangeText={(t) => setForm((p) => ({ ...p, name: t }))}
               placeholder="Ad Soyad"
+              placeholderTextColor={placeholderTextColor}
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: C.border,
                 borderRadius: 10,
                 padding: 10,
-                backgroundColor: "white"
+                backgroundColor: C.card,
+                color: C.text
               }}
             />
 
@@ -205,48 +226,53 @@ export default function AccountScreen() {
               value={form.birthDate}
               onChangeText={(t) => setForm((p) => ({ ...p, birthDate: t }))}
               placeholder="Doğum Tarihi (YYYY-AA-GG)"
+              placeholderTextColor={placeholderTextColor}
               autoCapitalize="none"
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: C.border,
                 borderRadius: 10,
                 padding: 10,
-                backgroundColor: "white"
+                backgroundColor: C.card,
+                color: C.text
               }}
             />
 
             <View style={{ flexDirection: "row", gap: 8 }}>
-              {GENDERS.map((g) => (
-                <TouchableOpacity
-                  key={g.key}
-                  activeOpacity={0.85}
-                  onPress={() => setForm((p) => ({ ...p, gender: g.key }))}
-                  style={{
-                    flex: 1,
-                    borderWidth: 1,
-                    borderColor: form.gender === g.key ? "#000" : "#ddd",
-                    borderRadius: 10,
-                    paddingVertical: 10,
-                    alignItems: "center",
-                    backgroundColor: "white"
-                  }}
-                >
-                  <Text style={{ fontWeight: "900" }}>{g.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {GENDERS.map((g) => {
+                const selected = form.gender === g.key;
+                return (
+                  <TouchableOpacity
+                    key={g.key}
+                    activeOpacity={0.85}
+                    onPress={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: selected ? C.primary : C.border,
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      alignItems: "center",
+                      backgroundColor: selected ? C.primary : C.card
+                    }}
+                  >
+                    <Text style={{ fontWeight: "900", color: selected ? C.background : C.text }}>{g.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={onSave}
               style={{
-                backgroundColor: "#000",
+                backgroundColor: C.primary,
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: "center"
               }}
             >
-              <Text style={{ color: "white", fontWeight: "900" }}>Kaydet</Text>
+              <Text style={{ color: C.background, fontWeight: "900" }}>Kaydet</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -261,14 +287,14 @@ export default function AccountScreen() {
               }}
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: C.border,
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: "center",
-                backgroundColor: "white"
+                backgroundColor: C.card
               }}
             >
-              <Text style={{ fontWeight: "900" }}>İptal</Text>
+              <Text style={{ fontWeight: "900", color: C.text }}>İptal</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -278,7 +304,7 @@ export default function AccountScreen() {
         activeOpacity={0.85}
         onPress={onLogout}
         style={{
-          backgroundColor: "#d00000",
+          backgroundColor: C.notification,
           paddingVertical: 12,
           borderRadius: 14,
           alignItems: "center"

@@ -16,6 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { auth } from "../services/firebase";
 import { getEvents, deleteEvent, updateEvent } from "../services/eventService";
 import EmptyState from "../components/EmptyState";
+import { useAppTheme } from "../contexts/ThemeContext";
 
 const TYPE_LABELS = {
   dogum_gunu: "Doğum Günü",
@@ -90,6 +91,10 @@ function UrgentWrapper({ urgent, children }) {
 }
 
 export default function UpcomingScreen() {
+  const { navTheme, mode } = useAppTheme();
+  const C = navTheme.colors;
+  const placeholderTextColor = mode === "dark" ? "#94a3b8" : "#6b7280";
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
@@ -98,7 +103,6 @@ export default function UpcomingScreen() {
   const [form, setForm] = useState({ title: "", note: "", type: "diger", date: "" });
 
   const [filter, setFilter] = useState("all");
-
   const [refreshing, setRefreshing] = useState(false);
 
   const loadEvents = useCallback(async (opts = { showSpinner: true }) => {
@@ -228,52 +232,56 @@ export default function UpcomingScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.background }}>
         <ActivityIndicator />
-        <Text style={{ marginTop: 10, fontWeight: "600" }}>Yükleniyor...</Text>
+        <Text style={{ marginTop: 10, fontWeight: "600", color: C.text }}>Yükleniyor...</Text>
       </View>
     );
   }
 
+  const urgentBg = mode === "dark" ? "#3b0d14" : "#fff1f2";
+  const dangerRed = "#d00000";
+
   return (
-    <View style={{ flex: 1, padding: 12 }}>
-      <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 8 }}>Yaklaşan Günler</Text>
+    <View style={{ flex: 1, padding: 12, backgroundColor: C.background }}>
+      <Text style={{ fontSize: 18, fontWeight: "800", marginBottom: 8, color: C.text }}>Yaklaşan Günler</Text>
 
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.key}
-            onPress={() => setFilter(f.key)}
-            activeOpacity={0.85}
-            style={{
-              borderWidth: 1,
-              borderColor: filter === f.key ? "#000" : "#ddd",
-              backgroundColor: filter === f.key ? "#000" : "#fff",
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 999
-            }}
-          >
-            <Text style={{ fontWeight: "900", color: filter === f.key ? "#fff" : "#000" }}>
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {FILTERS.map((f) => {
+          const selected = filter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setFilter(f.key)}
+              activeOpacity={0.85}
+              style={{
+                borderWidth: 1,
+                borderColor: selected ? C.primary : C.border,
+                backgroundColor: selected ? C.primary : C.card,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 999
+              }}
+            >
+              <Text style={{ fontWeight: "900", color: selected ? C.background : C.text }}>{f.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {urgentCount > 0 && (
         <View
           style={{
             borderWidth: 1,
-            borderColor: "#000",
+            borderColor: C.border,
             borderRadius: 12,
             padding: 10,
             marginBottom: 12,
-            backgroundColor: "#fff1f2"
+            backgroundColor: urgentBg
           }}
         >
-          <Text style={{ fontWeight: "900" }}>Acil</Text>
-          <Text style={{ fontWeight: "700" }}>Bugün/Yarın olan {urgentCount} özel gün var.</Text>
+          <Text style={{ fontWeight: "900", color: C.text }}>Acil</Text>
+          <Text style={{ fontWeight: "700", color: C.text }}>Bugün/Yarın olan {urgentCount} özel gün var.</Text>
         </View>
       )}
 
@@ -303,26 +311,33 @@ export default function UpcomingScreen() {
                 <View
                   style={{
                     borderWidth: 1,
-                    borderColor: urgent ? "#000" : open ? "#000" : "#ddd",
+                    borderColor: urgent ? C.primary : open ? C.primary : C.border,
                     borderRadius: 14,
                     padding: 12,
-                    backgroundColor: urgent ? "#fff1f2" : "#fff"
+                    backgroundColor: urgent ? urgentBg : C.card
                   }}
                 >
                   <TouchableOpacity activeOpacity={0.85} onPress={() => toggle(item.id)}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                       <View style={{ flex: 1, paddingRight: 10 }}>
-                        <Text style={{ fontWeight: "900" }}>{item.title || "-"}</Text>
-                        <Text style={{ marginTop: 4, fontWeight: "700" }}>Tarih: {item.date}</Text>
+                        <Text style={{ fontWeight: "900", color: C.text }}>{item.title || "-"}</Text>
+                        <Text style={{ marginTop: 4, fontWeight: "700", color: C.text }}>Tarih: {item.date}</Text>
                       </View>
 
                       <View style={{ alignItems: "flex-end", gap: 6 }}>
                         {badgeText ? (
-                          <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#000" }}>
-                            <Text style={{ color: "white", fontWeight: "900" }}>{badgeText}</Text>
+                          <View
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 999,
+                              backgroundColor: C.primary
+                            }}
+                          >
+                            <Text style={{ color: C.background, fontWeight: "900" }}>{badgeText}</Text>
                           </View>
                         ) : null}
-                        <Text style={{ fontWeight: "900" }}>{rightText}</Text>
+                        <Text style={{ fontWeight: "900", color: C.text }}>{rightText}</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -335,71 +350,121 @@ export default function UpcomingScreen() {
                             value={form.title}
                             onChangeText={(t) => setForm((p) => ({ ...p, title: t }))}
                             placeholder="Başlık"
-                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
+                            placeholderTextColor={placeholderTextColor}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: C.border,
+                              borderRadius: 10,
+                              padding: 10,
+                              backgroundColor: C.card,
+                              color: C.text
+                            }}
                           />
 
                           <TextInput
                             value={form.date}
                             onChangeText={(t) => setForm((p) => ({ ...p, date: t }))}
                             placeholder="Tarih (YYYY-AA-GG)"
+                            placeholderTextColor={placeholderTextColor}
                             autoCapitalize="none"
-                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: C.border,
+                              borderRadius: 10,
+                              padding: 10,
+                              backgroundColor: C.card,
+                              color: C.text
+                            }}
                           />
 
                           <TextInput
                             value={form.note}
                             onChangeText={(t) => setForm((p) => ({ ...p, note: t }))}
                             placeholder="Not"
-                            style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 10, padding: 10, backgroundColor: "white" }}
+                            placeholderTextColor={placeholderTextColor}
+                            style={{
+                              borderWidth: 1,
+                              borderColor: C.border,
+                              borderRadius: 10,
+                              padding: 10,
+                              backgroundColor: C.card,
+                              color: C.text
+                            }}
                           />
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
-                            {["dogum_gunu", "yildonumu", "diger"].map((t) => (
-                              <TouchableOpacity
-                                key={t}
-                                onPress={() => setForm((p) => ({ ...p, type: t }))}
-                                activeOpacity={0.85}
-                                style={{
-                                  flex: 1,
-                                  borderWidth: 1,
-                                  borderColor: form.type === t ? "#000" : "#ddd",
-                                  borderRadius: 10,
-                                  paddingVertical: 10,
-                                  alignItems: "center",
-                                  backgroundColor: "white"
-                                }}
-                              >
-                                <Text style={{ fontWeight: "800" }}>{TYPE_LABELS[t]}</Text>
-                              </TouchableOpacity>
-                            ))}
+                            {["dogum_gunu", "yildonumu", "diger"].map((t) => {
+                              const selected = form.type === t;
+                              return (
+                                <TouchableOpacity
+                                  key={t}
+                                  onPress={() => setForm((p) => ({ ...p, type: t }))}
+                                  activeOpacity={0.85}
+                                  style={{
+                                    flex: 1,
+                                    borderWidth: 1,
+                                    borderColor: selected ? C.primary : C.border,
+                                    borderRadius: 10,
+                                    paddingVertical: 10,
+                                    alignItems: "center",
+                                    backgroundColor: selected ? C.primary : C.card
+                                  }}
+                                >
+                                  <Text style={{ fontWeight: "800", color: selected ? C.background : C.text }}>
+                                    {TYPE_LABELS[t]}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
                           </View>
 
                           <TouchableOpacity
                             onPress={() => saveEdit(item)}
                             activeOpacity={0.85}
-                            style={{ backgroundColor: "#000", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
+                            style={{
+                              backgroundColor: C.primary,
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: "center"
+                            }}
                           >
-                            <Text style={{ color: "white", fontWeight: "900" }}>Kaydet</Text>
+                            <Text style={{ color: C.background, fontWeight: "900" }}>Kaydet</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
                             onPress={cancelEdit}
                             activeOpacity={0.85}
-                            style={{ paddingVertical: 10, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "#ddd", backgroundColor: "white" }}
+                            style={{
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: "center",
+                              borderWidth: 1,
+                              borderColor: C.border,
+                              backgroundColor: C.card
+                            }}
                           >
-                            <Text style={{ fontWeight: "900" }}>İptal</Text>
+                            <Text style={{ fontWeight: "900", color: C.text }}>İptal</Text>
                           </TouchableOpacity>
                         </>
                       ) : (
                         <>
-                          <Text style={{ fontWeight: "800" }}>Tür: {TYPE_LABELS[item.type] || "Diğer"}</Text>
-                          {!!item.note && <Text style={{ fontWeight: "700" }}>Not: {item.note}</Text>}
+                          <Text style={{ fontWeight: "800", color: C.text }}>
+                            Tür: {TYPE_LABELS[item.type] || "Diğer"}
+                          </Text>
+
+                          {!!item.note && <Text style={{ fontWeight: "700", color: C.text }}>Not: {item.note}</Text>}
 
                           <View style={{ flexDirection: "row", gap: 8 }}>
                             <TouchableOpacity
                               onPress={() => startEdit(item)}
                               activeOpacity={0.85}
-                              style={{ flex: 1, backgroundColor: "#444", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
+                              style={{
+                                flex: 1,
+                                backgroundColor: mode === "dark" ? "#334155" : "#444",
+                                paddingVertical: 10,
+                                borderRadius: 10,
+                                alignItems: "center"
+                              }}
                             >
                               <Text style={{ color: "white", fontWeight: "900" }}>Düzenle</Text>
                             </TouchableOpacity>
@@ -407,7 +472,13 @@ export default function UpcomingScreen() {
                             <TouchableOpacity
                               onPress={() => confirmDelete(item)}
                               activeOpacity={0.85}
-                              style={{ flex: 1, backgroundColor: "#d00000", paddingVertical: 10, borderRadius: 10, alignItems: "center" }}
+                              style={{
+                                flex: 1,
+                                backgroundColor: dangerRed,
+                                paddingVertical: 10,
+                                borderRadius: 10,
+                                alignItems: "center"
+                              }}
                             >
                               <Text style={{ color: "white", fontWeight: "900" }}>Sil</Text>
                             </TouchableOpacity>
