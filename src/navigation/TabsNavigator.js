@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { View, Text, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -7,51 +7,71 @@ import UpcomingScreen from "../screens/UpcomingScreen";
 import PastScreen from "../screens/PastScreen";
 import AccountScreen from "../screens/AccountScreen";
 import CalendarStack from "./CalendarStack";
-
 import { useAppTheme } from "../contexts/ThemeContext";
 
 const Tab = createBottomTabNavigator();
 
-const TabLabel = ({ text, focused, mode }) => (
-  <Text
-    style={{
-      fontSize: 11,
-      lineHeight: 12,
-      textAlign: "center",
-      color: focused
-        ? mode === "dark"
-          ? "#ffffff"
-          : "#000000"
-        : mode === "dark"
-        ? "#94a3b8"
-        : "#777",
-      marginTop: 2,
-      fontWeight: focused ? "800" : "600"
-    }}
-  >
-    {text}
-  </Text>
-);
+const TwoLineLabel = ({ line1, line2, focused, activeColor, inactiveColor }) => {
+  return (
+    <View style={{ alignItems: "center", justifyContent: "center", height: 30 }}>
+      <Text
+        allowFontScaling={false}
+        style={{
+          fontSize: 11,
+          lineHeight: 12,
+          textAlign: "center",
+          fontWeight: "700",
+          color: focused ? activeColor : inactiveColor,
+          ...(Platform.OS === "android" ? { includeFontPadding: false } : {})
+        }}
+      >
+        {line1}
+      </Text>
+
+      {!!line2 && (
+        <Text
+          allowFontScaling={false}
+          style={{
+            fontSize: 11,
+            lineHeight: 12,
+            textAlign: "center",
+            fontWeight: "700",
+            color: focused ? activeColor : inactiveColor,
+            ...(Platform.OS === "android" ? { includeFontPadding: false } : {})
+          }}
+        >
+          {line2}
+        </Text>
+      )}
+    </View>
+  );
+};
 
 export default function TabsNavigator() {
-  const { navTheme, mode } = useAppTheme();
+  const { navTheme } = useAppTheme();
   const C = navTheme.colors;
+
+  const activeLabelColor = C.text;
+  const inactiveLabelColor = navTheme.dark ? "#94a3b8" : "#6b7280";
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerTitleAlign: "center",
 
-        // ✅ Tab bar arka plan + border tema uyumlu
+        // ✅ Tema ile uyumlu alt bar
         tabBarStyle: {
-          height: 68,
-          paddingBottom: 6,
-          paddingTop: 6,
+          height: 72,
+          paddingBottom: 8,
+          paddingTop: 8,
           backgroundColor: C.card,
-          borderTopColor: C.border
+          borderTopColor: C.border,
+          borderTopWidth: 1
         },
 
         tabBarItemStyle: { justifyContent: "center" },
+
+        tabBarIconStyle: { marginTop: 2 },
 
         tabBarIcon: ({ focused }) => {
           let iconName = "";
@@ -74,26 +94,11 @@ export default function TabsNavigator() {
 
           if (route.name === "Account") {
             iconName = focused ? "settings" : "settings-outline";
-            iconColor = "#2c3e50";
+            // ✅ Dark modda daha görünür
+            iconColor = navTheme.dark ? "#cbd5e1" : "#2c3e50";
           }
 
-          // ✅ Dark mode’da seçili tab anlaşılır olsun diye
-          // ikonun arkasına "chip" gibi bir arka plan veriyoruz
-          return (
-            <View
-              style={{
-                padding: 6,
-                borderRadius: 10,
-                backgroundColor: focused
-                  ? mode === "dark"
-                    ? "#1f2937" // koyu temada seçili vurgusu
-                    : "#e5e7eb" // açık temada seçili vurgusu
-                  : "transparent"
-              }}
-            >
-              <Ionicons name={iconName} size={22} color={iconColor} />
-            </View>
-          );
+          return <Ionicons name={iconName} size={22} color={iconColor} />;
         }
       })}
     >
@@ -103,7 +108,13 @@ export default function TabsNavigator() {
         options={{
           title: "Yaklaşan Günler",
           tabBarLabel: ({ focused }) => (
-            <TabLabel text={"Yaklaşan\nGünler"} focused={focused} mode={mode} />
+            <TwoLineLabel
+              line1="Yaklaşan"
+              line2="Günler"
+              focused={focused}
+              activeColor={activeLabelColor}
+              inactiveColor={inactiveLabelColor}
+            />
           )
         }}
       />
@@ -114,7 +125,14 @@ export default function TabsNavigator() {
         options={{
           headerShown: false,
           title: "Takvim",
-          tabBarLabel: ({ focused }) => <TabLabel text={"Takvim"} focused={focused} mode={mode} />
+          tabBarLabel: ({ focused }) => (
+            <TwoLineLabel
+              line1="Takvim"
+              focused={focused}
+              activeColor={activeLabelColor}
+              inactiveColor={inactiveLabelColor}
+            />
+          )
         }}
       />
 
@@ -124,7 +142,13 @@ export default function TabsNavigator() {
         options={{
           title: "Geçmiş Günler",
           tabBarLabel: ({ focused }) => (
-            <TabLabel text={"Geçmiş\nGünler"} focused={focused} mode={mode} />
+            <TwoLineLabel
+              line1="Geçmiş"
+              line2="Günler"
+              focused={focused}
+              activeColor={activeLabelColor}
+              inactiveColor={inactiveLabelColor}
+            />
           )
         }}
       />
@@ -134,7 +158,14 @@ export default function TabsNavigator() {
         component={AccountScreen}
         options={{
           title: "Hesap",
-          tabBarLabel: ({ focused }) => <TabLabel text={"Hesap"} focused={focused} mode={mode} />
+          tabBarLabel: ({ focused }) => (
+            <TwoLineLabel
+              line1="Hesap"
+              focused={focused}
+              activeColor={activeLabelColor}
+              inactiveColor={inactiveLabelColor}
+            />
+          )
         }}
       />
     </Tab.Navigator>
